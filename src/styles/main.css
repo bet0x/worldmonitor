@@ -443,9 +443,13 @@ body {
 }
 
 .item.clustered {
-  border-left: 2px solid var(--panel-border);
+  border-left: 2px solid var(--border);
   padding-left: 8px;
   margin-left: -8px;
+}
+
+.item.clustered.alert {
+  border-left: 2px solid var(--red);
 }
 
 .item.clustered:hover {
