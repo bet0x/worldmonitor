@@ -11,7 +11,8 @@ import {
   STORAGE_KEYS,
 } from '@/config';
 import { fetchCategoryFeeds, fetchMultipleStocks, fetchCrypto, fetchPredictions, fetchEarthquakes, fetchWeatherAlerts, fetchFredData, fetchInternetOutages, initDB, updateBaseline, calculateDeviation, analyzeCorrelations, clusterNews, addToSignalHistory, saveSnapshot, cleanOldSnapshots } from '@/services';
-import { loadFromStorage, saveToStorage, ExportPanel } from '@/utils';
+import { buildMapUrl, debounce, loadFromStorage, parseMapUrlState, saveToStorage, ExportPanel } from '@/utils';
+import type { ParsedMapUrlState } from '@/utils';
 import {
   MapComponent,
   NewsPanel,
@@ -54,6 +55,7 @@ export class App {
   private latestMarkets: MarketData[] = [];
   private latestClusters: ClusteredEvent[] = [];
   private isPlaybackMode = false;
+  private initialUrlState: ParsedMapUrlState | null = null;
 
   constructor(containerId: string) {
     const el = document.getElementById(containerId);
@@ -66,6 +68,10 @@ export class App {
       DEFAULT_PANELS
     );
     this.mapLayers = loadFromStorage<MapLayers>(STORAGE_KEYS.mapLayers, DEFAULT_MAP_LAYERS);
+    this.initialUrlState = parseMapUrlState(window.location.search, this.mapLayers);
+    if (this.initialUrlState.layers) {
+      this.mapLayers = this.initialUrlState.layers;
+    }
   }
 
   public async init(): Promise<void> {
@@ -78,6 +84,7 @@ export class App {
     this.setupEconomicPanel();
     this.setupSearchModal();
     this.setupEventListeners();
+    this.setupUrlStateSync();
     await this.loadAllData();
     this.setupRefreshIntervals();
     this.setupSnapshotSaving();
@@ -455,6 +462,7 @@ export class App {
         </div>
         <div class="header-right">
           <button class="search-btn" id="searchBtn"><kbd>⌘K</kbd> Search</button>
+          <button class="copy-link-btn" id="copyLinkBtn">Copy Link</button>
           <span class="time-display" id="timeDisplay">--:--:-- UTC</span>
           <button class="settings-btn" id="settingsBtn">⚙ PANELS</button>
         </div>
@@ -595,6 +603,36 @@ export class App {
     });
 
     this.applyPanelSettings();
+    this.applyInitialUrlState();
+  }
+
+  private applyInitialUrlState(): void {
+    if (!this.initialUrlState || !this.map) return;
+
+    const { view, zoom, lat, lon, timeRange, layers } = this.initialUrlState;
+
+    if (view) {
+      this.map.setView(view);
+      this.setActiveViewButton(view);
+    }
+
+    if (timeRange) {
+      this.map.setTimeRange(timeRange);
+    }
+
+    if (layers) {
+      this.mapLayers = layers;
+      saveToStorage(STORAGE_KEYS.mapLayers, this.mapLayers);
+      this.map.setLayers(layers);
+    }
+
+    if (zoom !== undefined) {
+      this.map.setZoom(zoom);
+    }
+
+    if (lat !== undefined && lon !== undefined) {
+      this.map.setCenter(lat, lon);
+    }
   }
 
   private getSavedPanelOrder(): string[] {
@@ -655,9 +693,8 @@ export class App {
     // View buttons
     document.querySelectorAll('.view-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.view-btn').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
         const view = (btn as HTMLElement).dataset.view as 'global' | 'us' | 'mena';
+        this.setActiveViewButton(view);
         this.map?.setView(view);
       });
     });
@@ -666,6 +703,20 @@ export class App {
     document.getElementById('searchBtn')?.addEventListener('click', () => {
       this.updateSearchIndex();
       this.searchModal?.open();
+    });
+
+    // Copy link button
+    document.getElementById('copyLinkBtn')?.addEventListener('click', async () => {
+      const shareUrl = this.getShareUrl();
+      if (!shareUrl) return;
+      const button = document.getElementById('copyLinkBtn');
+      try {
+        await this.copyToClipboard(shareUrl);
+        this.setCopyLinkFeedback(button, 'Copied!');
+      } catch (error) {
+        console.warn('Failed to copy share link:', error);
+        this.setCopyLinkFeedback(button, 'Copy failed');
+      }
     });
 
     // Settings modal
@@ -690,6 +741,65 @@ export class App {
 
     // Map section resize handle
     this.setupMapResize();
+  }
+
+  private setupUrlStateSync(): void {
+    if (!this.map) return;
+    const update = debounce(() => {
+      const shareUrl = this.getShareUrl();
+      if (!shareUrl) return;
+      history.replaceState(null, '', shareUrl);
+    }, 250);
+
+    this.map.onStateChanged(() => update());
+    update();
+  }
+
+  private getShareUrl(): string | null {
+    if (!this.map) return null;
+    const state = this.map.getState();
+    const center = this.map.getCenter();
+    const baseUrl = `${window.location.origin}${window.location.pathname}`;
+    return buildMapUrl(baseUrl, {
+      view: state.view,
+      zoom: state.zoom,
+      center,
+      timeRange: state.timeRange,
+      layers: state.layers,
+    });
+  }
+
+  private async copyToClipboard(text: string): Promise<void> {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }
+
+  private setCopyLinkFeedback(button: HTMLElement | null, message: string): void {
+    if (!button) return;
+    const originalText = button.textContent ?? '';
+    button.textContent = message;
+    button.classList.add('copied');
+    window.setTimeout(() => {
+      button.textContent = originalText;
+      button.classList.remove('copied');
+    }, 1500);
+  }
+
+  private setActiveViewButton(view: 'global' | 'us' | 'mena'): void {
+    document.querySelectorAll('.view-btn').forEach((btn) => {
+      const isActive = (btn as HTMLElement).dataset.view === view;
+      btn.classList.toggle('active', isActive);
+    });
   }
 
   private setupMapResize(): void {

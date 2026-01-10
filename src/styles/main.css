@@ -171,6 +171,28 @@ body {
   color: var(--accent);
 }
 
+.copy-link-btn {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.copy-link-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.copy-link-btn.copied {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
 .search-btn kbd {
   background: var(--bg-secondary);
   padding: 2px 5px;

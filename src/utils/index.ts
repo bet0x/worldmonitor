@@ -85,3 +85,5 @@ export function chunkArray<T>(items: T[], size: number): T[][] {
 
 export { proxyUrl, fetchWithProxy } from './proxy';
 export { exportToJSON, exportToCSV, ExportPanel } from './export';
+export { buildMapUrl, parseMapUrlState } from './urlState';
+export type { ParsedMapUrlState } from './urlState';

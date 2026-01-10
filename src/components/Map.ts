@@ -23,8 +23,8 @@ import {
 } from '@/config';
 import { MapPopup } from './MapPopup';
 
-type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
-type MapView = 'global' | 'us' | 'mena';
+export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
+export type MapView = 'global' | 'us' | 'mena';
 
 interface MapState {
   zoom: number;
@@ -78,6 +78,7 @@ export class MapComponent {
   private onTimeRangeChange?: (range: TimeRange) => void;
   private onLayerChange?: (layer: keyof MapLayers, enabled: boolean) => void;
   private layerZoomOverrides: Partial<Record<keyof MapLayers, boolean>> = {};
+  private onStateChange?: (state: MapState) => void;
 
   constructor(container: HTMLElement, initialState: MapState) {
     this.container = container;
@@ -171,9 +172,19 @@ export class MapComponent {
     return slider;
   }
 
-  private setTimeRange(range: TimeRange): void {
+  private updateTimeSliderButtons(): void {
+    const slider = this.container.querySelector('#timeSlider');
+    if (!slider) return;
+    slider.querySelectorAll('.time-btn').forEach((btn) => {
+      const range = (btn as HTMLElement).dataset.range as TimeRange | undefined;
+      btn.classList.toggle('active', range === this.state.timeRange);
+    });
+  }
+
+  public setTimeRange(range: TimeRange): void {
     this.state.timeRange = range;
     this.onTimeRangeChange?.(range);
+    this.updateTimeSliderButtons();
     this.render();
   }
 
@@ -216,6 +227,14 @@ export class MapComponent {
     });
 
     return toggles;
+  }
+
+  private syncLayerButtons(): void {
+    this.container.querySelectorAll<HTMLButtonElement>('.layer-toggle').forEach((btn) => {
+      const layer = btn.dataset.layer as keyof MapLayers | undefined;
+      if (!layer) return;
+      btn.classList.toggle('active', this.state.layers[layer]);
+    });
   }
 
   private createLegend(): HTMLElement {
@@ -1266,6 +1285,10 @@ export class MapComponent {
     this.onLayerChange = callback;
   }
 
+  public onStateChanged(callback: (state: MapState) => void): void {
+    this.onStateChange = callback;
+  }
+
   public zoomIn(): void {
     this.state.zoom = Math.min(this.state.zoom + 0.5, 10);
     this.applyTransform();
@@ -1463,6 +1486,7 @@ export class MapComponent {
     // Smart label hiding based on zoom level and overlap
     this.updateLabelVisibility(zoom);
     this.updateZoomLayerVisibility();
+    this.emitStateChange();
   }
 
   private updateZoomLayerVisibility(): void {
@@ -1495,6 +1519,10 @@ export class MapComponent {
       const autoHidden = enabled && !override && zoom < thresholds.minZoom;
       btn?.classList.toggle('auto-hidden', autoHidden);
     });
+  }
+
+  private emitStateChange(): void {
+    this.onStateChange?.(this.getState());
   }
 
   private updateLabelVisibility(zoom: number): void {
@@ -1568,8 +1596,45 @@ export class MapComponent {
     return { ...this.state };
   }
 
+  public getCenter(): { lat: number; lon: number } | null {
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    const projection = this.getProjection(width, height);
+    const zoom = this.state.zoom;
+    const centerX = width / (2 * zoom) - this.state.pan.x;
+    const centerY = height / (2 * zoom) - this.state.pan.y;
+    const coords = projection.invert([centerX, centerY]);
+    if (!coords) return null;
+    return { lon: coords[0], lat: coords[1] };
+  }
+
   public getTimeRange(): TimeRange {
     return this.state.timeRange;
+  }
+
+  public setZoom(zoom: number): void {
+    this.state.zoom = Math.max(1, Math.min(10, zoom));
+    this.applyTransform();
+  }
+
+  public setCenter(lat: number, lon: number): void {
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    const projection = this.getProjection(width, height);
+    const pos = projection([lon, lat]);
+    if (!pos) return;
+    const zoom = this.state.zoom;
+    this.state.pan = {
+      x: width / (2 * zoom) - pos[0],
+      y: height / (2 * zoom) - pos[1],
+    };
+    this.applyTransform();
+  }
+
+  public setLayers(layers: MapLayers): void {
+    this.state.layers = { ...layers };
+    this.syncLayerButtons();
+    this.render();
   }
 
   public setEarthquakes(earthquakes: Earthquake[]): void {
@@ -1609,5 +1674,3 @@ export class MapComponent {
     this.render();
   }
 }
-
-export type { TimeRange };
