@@ -14,7 +14,6 @@ interface PreparedCluster {
   isNew: boolean;
   shouldHighlight: boolean;
   showNewTag: boolean;
-  html: string;
 }
 
 export class NewsPanel extends Panel {
@@ -42,7 +41,12 @@ export class NewsPanel extends Panel {
         chunkSize: 8, // Render 8 items per chunk
         bufferChunks: 1, // 1 chunk buffer above/below
       },
-      (prepared) => prepared.html,
+      (prepared) => this.renderClusterHtml(
+        prepared.cluster,
+        prepared.isNew,
+        prepared.shouldHighlight,
+        prepared.showNewTag
+      ),
       () => this.bindRelatedAssetEvents()
     );
   }
@@ -160,7 +164,7 @@ export class NewsPanel extends Panel {
       newItemIds = new Set(newIds);
     }
 
-    // Prepare all clusters with their rendering data
+    // Prepare all clusters with their rendering data (defer HTML creation)
     const prepared: PreparedCluster[] = clusters.map(cluster => {
       const isNew = newItemIds.has(cluster.id);
       const shouldHighlight = activityTracker.shouldHighlight(this.panelId, cluster.id);
@@ -171,7 +175,6 @@ export class NewsPanel extends Panel {
         isNew,
         shouldHighlight,
         showNewTag,
-        html: this.renderClusterHtml(cluster, isNew, shouldHighlight, showNewTag),
       };
     });
 
@@ -180,7 +183,9 @@ export class NewsPanel extends Panel {
       this.windowedList.setItems(prepared);
     } else {
       // Direct render for small lists
-      const html = prepared.map(p => p.html).join('');
+      const html = prepared
+        .map(p => this.renderClusterHtml(p.cluster, p.isNew, p.shouldHighlight, p.showNewTag))
+        .join('');
       this.setContent(html);
       this.bindRelatedAssetEvents();
     }
