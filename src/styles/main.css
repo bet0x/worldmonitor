@@ -6072,7 +6072,8 @@ body.playback-mode .status-dot {
   .irradiator-label,
   .spaceport-label,
   .mineral-label,
-  .conflict-label-overlay {
+  .conflict-label-overlay,
+  .country-label {
     display: none !important;
   }
 
