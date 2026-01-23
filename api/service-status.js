@@ -46,21 +46,21 @@ const SERVICES = [
 
 // Statuspage.io API returns status like: none, minor, major, critical
 function normalizeStatus(indicator) {
-  switch (indicator?.toLowerCase()) {
-    case 'none':
-    case 'operational':
-      return 'operational';
-    case 'minor':
-    case 'degraded_performance':
-    case 'partial_outage':
-      return 'degraded';
-    case 'major':
-    case 'major_outage':
-    case 'critical':
-      return 'outage';
-    default:
-      return 'unknown';
+  if (!indicator) return 'unknown';
+  const val = indicator.toLowerCase();
+  // Check for operational indicators
+  if (val === 'none' || val === 'operational' || val.includes('all systems operational')) {
+    return 'operational';
   }
+  // Check for degraded indicators
+  if (val === 'minor' || val === 'degraded_performance' || val === 'partial_outage' || val.includes('degraded')) {
+    return 'degraded';
+  }
+  // Check for outage indicators
+  if (val === 'major' || val === 'major_outage' || val === 'critical' || val.includes('outage')) {
+    return 'outage';
+  }
+  return 'unknown';
 }
 
 async function checkStatusPage(service) {
@@ -165,12 +165,24 @@ async function checkStatusPage(service) {
       return { ...service, status: 'unknown', description: data.message || 'Unknown' };
     }
 
-    const data = await response.json();
+    const text = await response.text();
+
+    // Check if we got HTML instead of JSON (blocked/redirected)
+    if (text.startsWith('<!') || text.startsWith('<html')) {
+      return { ...service, status: 'unknown', description: 'Blocked by service' };
+    }
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return { ...service, status: 'unknown', description: 'Invalid JSON response' };
+    }
 
     // Handle different API formats
     let status, description;
 
-    if (data.status?.indicator) {
+    if (data.status?.indicator !== undefined) {
       // Standard Statuspage.io format
       status = normalizeStatus(data.status.indicator);
       description = data.status.description || '';
@@ -178,6 +190,10 @@ async function checkStatusPage(service) {
       // Slack format
       status = data.status.status === 'ok' ? 'operational' : 'degraded';
       description = data.status.description || '';
+    } else if (data.page && data.status) {
+      // Alternative Statuspage format - check if status object exists
+      status = normalizeStatus(data.status.indicator || data.status.description);
+      description = data.status.description || 'Status available';
     } else {
       status = 'unknown';
       description = 'Unknown format';
