@@ -279,7 +279,7 @@ function trackHotspotActivity(lat: number, lon: number, weight: number = 1): voi
 
 function getHotspotBoost(countryCode: string): number {
   const activity = hotspotActivityMap.get(countryCode) || 0;
-  return Math.min(30, activity * 3);
+  return Math.min(10, activity * 1.5);  // Reduced from 30 max to 10 max
 }
 
 export function ingestMilitaryForCII(flights: MilitaryFlight[], vessels: MilitaryVessel[]): void {
@@ -479,19 +479,16 @@ export function calculateCII(): CountryScore[] {
     // Hotspot proximity boost - events near strategic locations are more significant
     const hotspotBoost = getHotspotBoost(code);
 
-    // News urgency boost - high information score means breaking news
-    // This prevents the score from being diluted when there's major news but no detected signals
-    // Example: "US sends armada to Iran" should elevate Iran even if no military tracked yet
-    const newsUrgencyBoost = components.information >= 70 ? 15
-      : components.information >= 50 ? 10
-      : components.information >= 30 ? 5
+    // News urgency boost - high information score means breaking news (reduced to prevent score inflation)
+    const newsUrgencyBoost = components.information >= 70 ? 5
+      : components.information >= 50 ? 3
       : 0;
 
     // Focal point intelligence boost - FocalPointDetector correlates news entities with map signals
-    // If Iran is marked "critical" by focal analysis, boost CII score accordingly
+    // Reduced to prevent multiple countries hitting 100
     const focalUrgency = focalUrgencies.get(code);
-    const focalBoost = focalUrgency === 'critical' ? 20
-      : focalUrgency === 'elevated' ? 10
+    const focalBoost = focalUrgency === 'critical' ? 8
+      : focalUrgency === 'elevated' ? 4
       : 0;
 
     // Blend baseline risk with detected events + all boosts
@@ -550,13 +547,12 @@ export function getCountryScore(code: string): number | null {
 
   const eventScore = components.unrest * 0.4 + components.security * 0.3 + components.information * 0.3;
   const hotspotBoost = getHotspotBoost(code);
-  const newsUrgencyBoost = components.information >= 70 ? 15
-    : components.information >= 50 ? 10
-    : components.information >= 30 ? 5
+  const newsUrgencyBoost = components.information >= 70 ? 5
+    : components.information >= 50 ? 3
     : 0;
   const focalUrgency = focalPointDetector.getCountryUrgency(code);
-  const focalBoost = focalUrgency === 'critical' ? 20
-    : focalUrgency === 'elevated' ? 10
+  const focalBoost = focalUrgency === 'critical' ? 8
+    : focalUrgency === 'elevated' ? 4
     : 0;
   const blendedScore = baselineRisk * 0.4 + eventScore * 0.6 + hotspotBoost + newsUrgencyBoost + focalBoost;
 
