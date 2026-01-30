@@ -500,11 +500,11 @@ export function calculateCII(): CountryScore[] {
     // Active conflict zones have a FLOOR score - they're inherently more unstable
     // than peaceful countries regardless of detected events
     const conflictFloor: Record<string, number> = {
-      UA: 55,  // Active war
-      SY: 50,  // Civil war
-      YE: 50,  // Civil war
-      MM: 45,  // Coup/civil conflict
-      IL: 45,  // Active Gaza conflict
+      UA: 72,  // Active full-scale war
+      SY: 66,  // Civil war
+      YE: 66,  // Civil war
+      MM: 60,  // Coup/civil conflict
+      IL: 60,  // Active Gaza/Lebanon conflict
     };
     const floor = conflictFloor[code] ?? 0;
     const score = Math.round(Math.min(100, Math.max(floor, blendedScore)));
@@ -556,7 +556,7 @@ export function getCountryScore(code: string): number | null {
 
   // Active conflict zones have floor scores
   const conflictFloor: Record<string, number> = {
-    UA: 55, SY: 50, YE: 50, MM: 45, IL: 45,
+    UA: 72, SY: 66, YE: 66, MM: 60, IL: 60,
   };
   const floor = conflictFloor[code] ?? 0;
 
