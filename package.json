@@ -27,8 +27,10 @@
     "desktop:package:macos:tech": "VITE_VARIANT=tech npx @tauri-apps/cli build --config src-tauri/tauri.tech.conf.json --bundles app,dmg",
     "desktop:package:windows:full": "VITE_VARIANT=full npx @tauri-apps/cli build --bundles nsis,msi",
     "desktop:package:windows:tech": "VITE_VARIANT=tech npx @tauri-apps/cli build --config src-tauri/tauri.tech.conf.json --bundles nsis,msi",
-    "desktop:package:macos:full:signed": "VITE_VARIANT=full APPLE_SIGNING_IDENTITY=${APPLE_SIGNING_IDENTITY:-} APPLE_ID=${APPLE_ID:-} APPLE_PASSWORD=${APPLE_PASSWORD:-} APPLE_TEAM_ID=${APPLE_TEAM_ID:-} npx @tauri-apps/cli build --bundles app,dmg",
-    "desktop:package:windows:full:signed": "VITE_VARIANT=full WINDOWS_CERTIFICATE_THUMBPRINT=${WINDOWS_CERTIFICATE_THUMBPRINT:-} WINDOWS_TIMESTAMP_URL=${WINDOWS_TIMESTAMP_URL:-http://timestamp.digicert.com} npx @tauri-apps/cli build --bundles nsis,msi"
+    "desktop:package:macos:full:sign": "VITE_VARIANT=full npx @tauri-apps/cli build --bundles app,dmg",
+    "desktop:package:macos:tech:sign": "VITE_VARIANT=tech npx @tauri-apps/cli build --config src-tauri/tauri.tech.conf.json --bundles app,dmg",
+    "desktop:package:windows:full:sign": "VITE_VARIANT=full npx @tauri-apps/cli build --bundles nsis,msi",
+    "desktop:package:windows:tech:sign": "VITE_VARIANT=tech npx @tauri-apps/cli build --config src-tauri/tauri.tech.conf.json --bundles nsis,msi"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",

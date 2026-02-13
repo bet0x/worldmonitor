@@ -1,17 +1,22 @@
 # Desktop Release Packaging Guide (Local, Reproducible)
 
-This guide defines reproducible local packaging commands for both desktop variants:
+This guide provides reproducible local packaging steps for both desktop variants:
 
 - **full** → `World Monitor`
 - **tech** → `Tech Monitor`
 
-The Tech variant is configured via `src-tauri/tauri.tech.conf.json` with a distinct product name and binary identifier.
+Variant identity is controlled by Tauri config:
+
+- full: `src-tauri/tauri.conf.json`
+- tech: `src-tauri/tauri.tech.conf.json`
 
 ## Prerequisites
 
 - Node.js + npm
 - Rust toolchain
-- Tauri CLI dependencies for your OS (Xcode tools on macOS, Visual Studio Build Tools + WiX/NSIS support on Windows)
+- OS-native Tauri build prerequisites:
+  - macOS: Xcode command-line tools
+  - Windows: Visual Studio Build Tools + NSIS + WiX
 
 Install dependencies:
 
@@ -19,25 +24,36 @@ Install dependencies:
 npm ci
 ```
 
-## macOS packaging (`.app` + `.dmg`)
+## Packaging commands
 
-### Full variant
+### macOS (`.app` + `.dmg`)
 
 ```bash
 npm run desktop:package:macos:full
-```
-
-### Tech variant
-
-```bash
 npm run desktop:package:macos:tech
 ```
 
-These commands call Tauri with `--bundles app,dmg` to ensure deterministic macOS artifacts.
+### Windows (`.exe` + `.msi`)
 
-### Optional macOS signing + notarization hooks (env)
+```bash
+npm run desktop:package:windows:full
+npm run desktop:package:windows:tech
+```
 
-When signing/notarizing, set these environment variables before running the macOS packaging command:
+These scripts lock bundler output to explicit targets:
+
+- macOS: `app,dmg`
+- Windows: `nsis,msi`
+
+## Optional signing/notarization hooks
+
+Unsigned packaging works by default.
+
+If signing credentials are present in environment variables, Tauri will sign/notarize automatically during the same packaging commands.
+
+### macOS Apple Developer signing + notarization
+
+Set before packaging:
 
 ```bash
 export TAURI_BUNDLE_MACOS_SIGNING_IDENTITY="Developer ID Application: Your Company (TEAMID)"
@@ -47,85 +63,68 @@ export APPLE_PASSWORD="app-specific-password"
 export APPLE_TEAM_ID="TEAMID"
 ```
 
-Then run:
+Then run either standard or explicit sign script aliases:
 
 ```bash
 npm run desktop:package:macos:full
+# or
+npm run desktop:package:macos:full:sign
 ```
 
-> If the signing/notary variables are not present, packaging still works unsigned.
+### Windows Authenticode signing
 
-## Windows packaging (`.exe` + `.msi`)
-
-### Full variant
-
-```bash
-npm run desktop:package:windows:full
-```
-
-### Tech variant
-
-```bash
-npm run desktop:package:windows:tech
-```
-
-These commands call Tauri with `--bundles nsis,msi` to produce:
-
-- NSIS installer (`.exe`)
-- MSI installer (`.msi`)
-
-### Optional Windows Authenticode hooks (env)
-
-Set Authenticode-related variables before running Windows packaging:
+Set before packaging (PowerShell):
 
 ```powershell
 $env:TAURI_BUNDLE_WINDOWS_CERTIFICATE_THUMBPRINT="<CERT_THUMBPRINT>"
-$env:TAURI_BUNDLE_WINDOWS_TIMESTAMP_URL="http://timestamp.digicert.com"
+$env:TAURI_BUNDLE_WINDOWS_TIMESTAMP_URL="https://timestamp.digicert.com"
 ```
 
-Then run:
+Then run either standard or explicit sign script aliases:
 
 ```powershell
 npm run desktop:package:windows:full
+# or
+npm run desktop:package:windows:full:sign
 ```
 
-> If certificate variables are not present, packaging still works unsigned.
+## Variant-aware outputs (names/icons)
 
-## Variant-aware outputs
+- Full variant: `World Monitor` / `world-monitor`
+- Tech variant: `Tech Monitor` / `tech-monitor`
 
-- **full** variant uses `src-tauri/tauri.conf.json` (`World Monitor`, `world-monitor`)
-- **tech** variant uses `src-tauri/tauri.tech.conf.json` (`Tech Monitor`, `tech-monitor`)
+Distinct names are already configured.
 
-If you want distinct icons per variant, add icon sets and set `bundle.icon` per config file.
+If you also want variant-specific icons, set `bundle.icon` separately in each Tauri config file and point each variant to its own icon assets.
 
-## Artifact output locations
+## Output locations
 
-Artifacts are generated under:
+Artifacts are produced under:
 
 ```text
 src-tauri/target/release/bundle/
 ```
 
-Typical subfolders:
+Common subfolders:
 
-- `app/` (macOS `.app`)
-- `dmg/` (macOS `.dmg`)
-- `nsis/` (Windows `.exe` installer)
-- `msi/` (Windows `.msi` installer)
+- `app/` → macOS `.app`
+- `dmg/` → macOS `.dmg`
+- `nsis/` → Windows `.exe` installer
+- `msi/` → Windows `.msi` installer
 
-## Release checklist (clean-machine validation)
+## Release checklist (clean machine)
 
-1. Build target artifacts for required OS + variant.
-2. Copy installer/image to a clean machine (or fresh VM).
-3. Install/open app:
-   - macOS: open `.dmg`, drag app, launch from Applications.
-   - Windows: run `.exe` or `.msi`, then launch from Start menu.
+1. Build required OS + variant package(s).
+2. Move artifacts to a clean machine (or fresh VM).
+3. Install/launch:
+   - macOS: mount `.dmg`, drag app to Applications, launch.
+   - Windows: run `.exe` or `.msi`, launch from Start menu.
 4. Validate startup:
-   - Window opens successfully.
+   - App window opens without crash.
    - Map view renders.
-   - No crash on first launch.
+   - Initial data loading path does not fatal-error.
 5. Validate variant identity:
-   - App title/product name matches expected variant.
+   - Window title and product name match expected variant.
 6. If signing was enabled:
-   - Confirm signature details in OS security dialogs.
-   - Confirm notarization acceptance on macOS (no Gatekeeper warning after notarized release).
+   - Verify code-signing metadata in OS dialogs/properties.
+   - Verify notarization/Gatekeeper acceptance on macOS.
