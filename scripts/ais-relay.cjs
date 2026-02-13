@@ -10,6 +10,7 @@
  */
 
 const http = require('http');
+const zlib = require('zlib');
 const { WebSocketServer, WebSocket } = require('ws');
 
 const AISSTREAM_URL = 'wss://stream.aisstream.io/v0/stream';
@@ -22,9 +23,30 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+const MAX_WS_CLIENTS = 10; // Cap WS clients — app uses HTTP snapshots, not WS
+
 let upstreamSocket = null;
 let clients = new Set();
 let messageCount = 0;
+
+// gzip compress & send a response (reduces egress ~80% for JSON)
+function sendCompressed(req, res, statusCode, headers, body) {
+  const acceptEncoding = req.headers['accept-encoding'] || '';
+  if (acceptEncoding.includes('gzip')) {
+    zlib.gzip(typeof body === 'string' ? Buffer.from(body) : body, (err, compressed) => {
+      if (err) {
+        res.writeHead(statusCode, headers);
+        res.end(body);
+        return;
+      }
+      res.writeHead(statusCode, { ...headers, 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding' });
+      res.end(compressed);
+    });
+  } else {
+    res.writeHead(statusCode, headers);
+    res.end(body);
+  }
+}
 
 // AIS aggregate state for snapshot API (server-side fanout)
 const GRID_SIZE = 2;
@@ -464,17 +486,14 @@ async function ucdpFetchAllEvents() {
 async function handleUcdpEventsRequest(req, res) {
   const now = Date.now();
 
-  // Serve from cache if fresh
   if (ucdpCache.data && now - ucdpCache.timestamp < UCDP_CACHE_TTL_MS) {
-    res.writeHead(200, {
+    return sendCompressed(req, res, 200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'public, max-age=3600',
       'X-Cache': 'HIT',
-    });
-    return res.end(JSON.stringify(ucdpCache.data));
+    }, JSON.stringify(ucdpCache.data));
   }
 
-  // Serve stale cache while refreshing in background
   if (ucdpCache.data && !ucdpFetchInProgress) {
     ucdpFetchInProgress = true;
     ucdpFetchAllEvents()
@@ -485,17 +504,14 @@ async function handleUcdpEventsRequest(req, res) {
       .catch(err => console.error('[UCDP] Background refresh error:', err.message))
       .finally(() => { ucdpFetchInProgress = false; });
 
-    res.writeHead(200, {
+    return sendCompressed(req, res, 200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'public, max-age=600',
       'X-Cache': 'STALE',
-    });
-    return res.end(JSON.stringify(ucdpCache.data));
+    }, JSON.stringify(ucdpCache.data));
   }
 
-  // No cache — fetch synchronously
   if (ucdpFetchInProgress) {
-    // Another request is already fetching, wait briefly then serve whatever we have
     res.writeHead(202, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ success: false, count: 0, data: [], cached_at: '', message: 'Fetch in progress' }));
   }
@@ -508,12 +524,11 @@ async function handleUcdpEventsRequest(req, res) {
     ucdpFetchInProgress = false;
     console.log(`[UCDP] Cold fetch complete: ${result.count} events (v${result.version})`);
 
-    res.writeHead(200, {
+    sendCompressed(req, res, 200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'public, max-age=3600',
       'X-Cache': 'MISS',
-    });
-    res.end(JSON.stringify(result));
+    }, JSON.stringify(result));
   } catch (err) {
     ucdpFetchInProgress = false;
     console.error('[UCDP] Fetch error:', err.message);
@@ -614,15 +629,13 @@ async function handleOpenSkyRequest(req, res, PORT) {
       .map(k => params.get(k) || '')
       .join(',');
 
-    // Serve from cache if fresh (30s TTL)
     const cached = openskyResponseCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < OPENSKY_CACHE_TTL_MS) {
-      res.writeHead(200, {
+      return sendCompressed(req, res, 200, {
         'Content-Type': 'application/json',
         'Cache-Control': 'public, max-age=30',
         'X-Cache': 'HIT',
-      });
-      return res.end(cached.data);
+      }, cached.data);
     }
 
     const token = await getOpenSkyToken();
@@ -659,25 +672,21 @@ async function handleOpenSkyRequest(req, res, PORT) {
           openskyToken = null;
           openskyTokenExpiry = 0;
         }
-        // Cache successful responses
         if (response.statusCode === 200) {
           openskyResponseCache.set(cacheKey, { data, timestamp: Date.now() });
         }
-        res.writeHead(response.statusCode, {
+        sendCompressed(req, res, response.statusCode, {
           'Content-Type': 'application/json',
           'Cache-Control': 'public, max-age=30',
           'X-Cache': 'MISS',
-        });
-        res.end(data);
+        }, data);
       });
     });
 
     request.on('error', (err) => {
       console.error('[Relay] OpenSky error:', err.message);
-      // Serve stale cache on error
       if (cached) {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' });
-        return res.end(cached.data);
+        return sendCompressed(req, res, 200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' }, cached.data);
       }
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: err.message, time: Date.now(), states: null }));
@@ -686,8 +695,7 @@ async function handleOpenSkyRequest(req, res, PORT) {
     request.on('timeout', () => {
       request.destroy();
       if (cached) {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' });
-        return res.end(cached.data);
+        return sendCompressed(req, res, 200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' }, cached.data);
       }
       res.writeHead(504, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Request timeout', time: Date.now(), states: null }));
@@ -745,11 +753,10 @@ const server = http.createServer(async (req, res) => {
       ? { ...snapshot, candidateReports: getCandidateReportsSnapshot() }
       : { ...snapshot, candidateReports: [] };
 
-    res.writeHead(200, {
+    sendCompressed(req, res, 200, {
       'Content-Type': 'application/json',
       'Cache-Control': 'public, max-age=2'
-    });
-    res.end(JSON.stringify(payload));
+    }, JSON.stringify(payload));
   } else if (req.url.startsWith('/rss')) {
     // Proxy RSS feeds that block Vercel IPs
     try {
@@ -980,7 +987,12 @@ server.listen(PORT, () => {
 });
 
 wss.on('connection', (ws, req) => {
-  console.log('[Relay] Client connected');
+  if (clients.size >= MAX_WS_CLIENTS) {
+    console.log(`[Relay] WS client rejected (max ${MAX_WS_CLIENTS})`);
+    ws.close(1013, 'Max clients reached');
+    return;
+  }
+  console.log(`[Relay] Client connected (${clients.size + 1}/${MAX_WS_CLIENTS})`);
   clients.add(ws);
   connectUpstream();
 
