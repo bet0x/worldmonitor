@@ -159,6 +159,10 @@ const allLayersEnabled: MapLayers = {
   accelerators: true,
   techHQs: true,
   techEvents: true,
+  stockExchanges: true,
+  financialCenters: true,
+  centralBanks: true,
+  commodityHubs: true,
 };
 
 const allLayersDisabled: MapLayers = {
@@ -192,6 +196,10 @@ const allLayersDisabled: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: false,
+  stockExchanges: false,
+  financialCenters: false,
+  centralBanks: false,
+  commodityHubs: false,
 };
 
 const SEEDED_NEWS_LOCATIONS: Array<{

@@ -544,6 +544,11 @@ export interface MapLayers {
   accelerators: boolean;
   techHQs: boolean;
   techEvents: boolean;
+  // Finance variant layers
+  stockExchanges: boolean;
+  financialCenters: boolean;
+  centralBanks: boolean;
+  commodityHubs: boolean;
 }
 
 export interface AIDataCenter {

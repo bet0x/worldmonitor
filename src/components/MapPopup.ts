@@ -10,7 +10,7 @@ import { fetchHotspotContext, formatArticleDate, extractDomain, type GdeltArticl
 import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub';
 
 interface TechEventPopupData {
   id: string;
@@ -43,6 +43,52 @@ interface TechEventClusterData {
   count?: number;
   soonCount?: number;
   sampled?: boolean;
+}
+
+// Finance popup data types
+interface StockExchangePopupData {
+  id: string;
+  name: string;
+  shortName: string;
+  city: string;
+  country: string;
+  tier: string;
+  marketCap?: number;
+  tradingHours?: string;
+  timezone?: string;
+  description?: string;
+}
+
+interface FinancialCenterPopupData {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  type: string;
+  gfciRank?: number;
+  specialties?: string[];
+  description?: string;
+}
+
+interface CentralBankPopupData {
+  id: string;
+  name: string;
+  shortName: string;
+  city: string;
+  country: string;
+  type: string;
+  currency?: string;
+  description?: string;
+}
+
+interface CommodityHubPopupData {
+  id: string;
+  name: string;
+  city: string;
+  country: string;
+  type: string;
+  commodities?: string[];
+  description?: string;
 }
 
 interface ProtestClusterData {
@@ -267,6 +313,14 @@ export class MapPopup {
         return this.renderTechHQClusterPopup(data.data as TechHQClusterData);
       case 'techEventCluster':
         return this.renderTechEventClusterPopup(data.data as TechEventClusterData);
+      case 'stockExchange':
+        return this.renderStockExchangePopup(data.data as unknown as StockExchangePopupData);
+      case 'financialCenter':
+        return this.renderFinancialCenterPopup(data.data as unknown as FinancialCenterPopupData);
+      case 'centralBank':
+        return this.renderCentralBankPopup(data.data as unknown as CentralBankPopupData);
+      case 'commodityHub':
+        return this.renderCommodityHubPopup(data.data as unknown as CommodityHubPopupData);
       default:
         return '';
     }
@@ -2177,6 +2231,113 @@ export class MapPopup {
           </div>
         </div>
         <p class="popup-description">${escapeHtml(mine.significance)}</p>
+      </div>
+    `;
+  }
+
+  private renderStockExchangePopup(exchange: StockExchangePopupData): string {
+    const tierLabel = exchange.tier.toUpperCase();
+    const tierClass = exchange.tier === 'mega' ? 'high' : exchange.tier === 'major' ? 'medium' : 'low';
+
+    return `
+      <div class="popup-header exchange">
+        <span class="popup-title">${escapeHtml(exchange.shortName)}</span>
+        <span class="popup-badge ${tierClass}">${tierLabel}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-subtitle">${escapeHtml(exchange.name)}</div>
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">LOCATION</span>
+            <span class="stat-value">${escapeHtml(exchange.city)}, ${escapeHtml(exchange.country)}</span>
+          </div>
+          ${exchange.marketCap ? `<div class="popup-stat"><span class="stat-label">MARKET CAP</span><span class="stat-value">$${exchange.marketCap}T</span></div>` : ''}
+          ${exchange.tradingHours ? `<div class="popup-stat"><span class="stat-label">TRADING HOURS</span><span class="stat-value">${escapeHtml(exchange.tradingHours)}</span></div>` : ''}
+        </div>
+        ${exchange.description ? `<p class="popup-description">${escapeHtml(exchange.description)}</p>` : ''}
+      </div>
+    `;
+  }
+
+  private renderFinancialCenterPopup(center: FinancialCenterPopupData): string {
+    const typeLabel = center.type.toUpperCase();
+
+    return `
+      <div class="popup-header financial-center">
+        <span class="popup-title">${escapeHtml(center.name)}</span>
+        <span class="popup-badge">${typeLabel}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">LOCATION</span>
+            <span class="stat-value">${escapeHtml(center.city)}, ${escapeHtml(center.country)}</span>
+          </div>
+          ${center.gfciRank ? `<div class="popup-stat"><span class="stat-label">GFCI RANK</span><span class="stat-value">#${center.gfciRank}</span></div>` : ''}
+        </div>
+        ${center.specialties && center.specialties.length > 0 ? `
+          <div class="popup-section">
+            <span class="section-label">SPECIALTIES</span>
+            <div class="popup-tags">
+              ${center.specialties.map(s => `<span class="popup-tag">${escapeHtml(s)}</span>`).join('')}
+            </div>
+          </div>
+        ` : ''}
+        ${center.description ? `<p class="popup-description">${escapeHtml(center.description)}</p>` : ''}
+      </div>
+    `;
+  }
+
+  private renderCentralBankPopup(bank: CentralBankPopupData): string {
+    const typeLabel = bank.type.toUpperCase();
+
+    return `
+      <div class="popup-header central-bank">
+        <span class="popup-title">${escapeHtml(bank.shortName)}</span>
+        <span class="popup-badge">${typeLabel}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-subtitle">${escapeHtml(bank.name)}</div>
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">LOCATION</span>
+            <span class="stat-value">${escapeHtml(bank.city)}, ${escapeHtml(bank.country)}</span>
+          </div>
+          ${bank.currency ? `<div class="popup-stat"><span class="stat-label">CURRENCY</span><span class="stat-value">${escapeHtml(bank.currency)}</span></div>` : ''}
+        </div>
+        ${bank.description ? `<p class="popup-description">${escapeHtml(bank.description)}</p>` : ''}
+      </div>
+    `;
+  }
+
+  private renderCommodityHubPopup(hub: CommodityHubPopupData): string {
+    const typeLabel = hub.type.toUpperCase();
+
+    return `
+      <div class="popup-header commodity-hub">
+        <span class="popup-title">${escapeHtml(hub.name)}</span>
+        <span class="popup-badge">${typeLabel}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">LOCATION</span>
+            <span class="stat-value">${escapeHtml(hub.city)}, ${escapeHtml(hub.country)}</span>
+          </div>
+        </div>
+        ${hub.commodities && hub.commodities.length > 0 ? `
+          <div class="popup-section">
+            <span class="section-label">COMMODITIES</span>
+            <div class="popup-tags">
+              ${hub.commodities.map(c => `<span class="popup-tag">${escapeHtml(c)}</span>`).join('')}
+            </div>
+          </div>
+        ` : ''}
+        ${hub.description ? `<p class="popup-description">${escapeHtml(hub.description)}</p>` : ''}
       </div>
     `;
   }

@@ -2,6 +2,7 @@
 // For variant-specific builds, set VITE_VARIANT environment variable
 // VITE_VARIANT=tech → tech.worldmonitor.app (tech-focused)
 // VITE_VARIANT=full → worldmonitor.app (geopolitical)
+// VITE_VARIANT=finance → finance.worldmonitor.app (markets/trading)
 
 export { SITE_VARIANT } from './variant';
 
@@ -99,3 +100,15 @@ export {
   type TechHQ,
   type CloudRegion,
 } from './tech-geo';
+
+// Finance variant - these are included in finance builds
+export {
+  STOCK_EXCHANGES,
+  FINANCIAL_CENTERS,
+  CENTRAL_BANKS,
+  COMMODITY_HUBS,
+  type StockExchange,
+  type FinancialCenter,
+  type CentralBank,
+  type CommodityHub,
+} from './finance-geo';

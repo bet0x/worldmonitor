@@ -232,6 +232,11 @@ export const DEFAULT_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: true,
   techEvents: true,
+  // Finance layers (disabled in tech variant)
+  stockExchanges: false,
+  financialCenters: false,
+  centralBanks: false,
+  commodityHubs: false,
 };
 
 // Mobile defaults for tech variant
@@ -267,6 +272,11 @@ export const MOBILE_DEFAULT_MAP_LAYERS: MapLayers = {
   accelerators: false,
   techHQs: false,
   techEvents: true,
+  // Finance layers (disabled in tech variant)
+  stockExchanges: false,
+  financialCenters: false,
+  centralBanks: false,
+  commodityHubs: false,
 };
 
 export const VARIANT_CONFIG: VariantConfig = {

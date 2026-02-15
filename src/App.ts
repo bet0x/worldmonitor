@@ -89,6 +89,7 @@ import { TECH_COMPANIES } from '@/config/tech-companies';
 import { AI_RESEARCH_LABS } from '@/config/ai-research-labs';
 import { STARTUP_ECOSYSTEMS } from '@/config/startup-ecosystems';
 import { TECH_HQS, ACCELERATORS } from '@/config/tech-geo';
+import { STOCK_EXCHANGES, FINANCIAL_CENTERS, CENTRAL_BANKS, COMMODITY_HUBS } from '@/config/finance-geo';
 import { isDesktopRuntime } from '@/services/runtime';
 import { getCountryAtCoordinates, hasCountryGeometry, isCoordinateInCountry, preloadCountryGeometry } from '@/services/country-geometry';
 
@@ -406,8 +407,8 @@ export class App {
   }
 
   private setupPizzIntIndicator(): void {
-    // Skip DEFCON indicator for tech/startup variant
-    if (SITE_VARIANT === 'tech') return;
+    // Skip DEFCON indicator for tech/startup and finance variants
+    if (SITE_VARIANT === 'tech' || SITE_VARIANT === 'finance') return;
 
     this.pizzintIndicator = new PizzIntIndicator();
     const headerLeft = this.container.querySelector('.header-left');
@@ -1017,6 +1018,11 @@ export class App {
           placeholder: 'Search companies, AI labs, startups, events...',
           hint: 'HQs • Companies • AI Labs • Startups • Accelerators • Events',
         }
+      : SITE_VARIANT === 'finance'
+      ? {
+          placeholder: 'Search exchanges, markets, central banks...',
+          hint: 'Exchanges • Financial Centers • Central Banks • Commodities',
+        }
       : {
           placeholder: 'Search news, pipelines, bases, markets...',
           hint: 'News • Countries • Hotspots • Conflicts • Bases • Pipelines • Cables • Datacenters',
@@ -1134,7 +1140,38 @@ export class App {
       })));
     }
 
-    // Register countries for both variants
+    if (SITE_VARIANT === 'finance') {
+      // Finance variant: market-specific sources
+      this.searchModal.registerSource('exchange', STOCK_EXCHANGES.map(e => ({
+        id: e.id,
+        title: `${e.shortName} - ${e.name}`,
+        subtitle: `${e.tier} • ${e.city}, ${e.country}${e.marketCap ? ` • $${e.marketCap}T` : ''}`,
+        data: e,
+      })));
+
+      this.searchModal.registerSource('financialcenter', FINANCIAL_CENTERS.map(f => ({
+        id: f.id,
+        title: f.name,
+        subtitle: `${f.type} financial center${f.gfciRank ? ` • GFCI #${f.gfciRank}` : ''}${f.specialties ? ` • ${f.specialties.slice(0, 3).join(', ')}` : ''}`,
+        data: f,
+      })));
+
+      this.searchModal.registerSource('centralbank', CENTRAL_BANKS.map(b => ({
+        id: b.id,
+        title: `${b.shortName} - ${b.name}`,
+        subtitle: `${b.type}${b.currency ? ` • ${b.currency}` : ''} • ${b.city}, ${b.country}`,
+        data: b,
+      })));
+
+      this.searchModal.registerSource('commodityhub', COMMODITY_HUBS.map(h => ({
+        id: h.id,
+        title: h.name,
+        subtitle: `${h.type} • ${h.city}, ${h.country}${h.commodities ? ` • ${h.commodities.slice(0, 3).join(', ')}` : ''}`,
+        data: h,
+      })));
+    }
+
+    // Register countries for all variants
     this.searchModal.registerSource('country', this.buildCountrySearchItems());
 
     // Handle result selection
@@ -1306,6 +1343,46 @@ export class App {
         }, 300);
         break;
       }
+      case 'exchange': {
+        const exchange = result.data as typeof STOCK_EXCHANGES[0];
+        this.map?.setView('global');
+        this.map?.enableLayer('stockExchanges');
+        this.mapLayers.stockExchanges = true;
+        setTimeout(() => {
+          this.map?.setCenter(exchange.lat, exchange.lon, 4);
+        }, 300);
+        break;
+      }
+      case 'financialcenter': {
+        const fc = result.data as typeof FINANCIAL_CENTERS[0];
+        this.map?.setView('global');
+        this.map?.enableLayer('financialCenters');
+        this.mapLayers.financialCenters = true;
+        setTimeout(() => {
+          this.map?.setCenter(fc.lat, fc.lon, 4);
+        }, 300);
+        break;
+      }
+      case 'centralbank': {
+        const bank = result.data as typeof CENTRAL_BANKS[0];
+        this.map?.setView('global');
+        this.map?.enableLayer('centralBanks');
+        this.mapLayers.centralBanks = true;
+        setTimeout(() => {
+          this.map?.setCenter(bank.lat, bank.lon, 4);
+        }, 300);
+        break;
+      }
+      case 'commodityhub': {
+        const hub = result.data as typeof COMMODITY_HUBS[0];
+        this.map?.setView('global');
+        this.map?.enableLayer('commodityHubs');
+        this.mapLayers.commodityHubs = true;
+        setTimeout(() => {
+          this.map?.setCenter(hub.lat, hub.lon, 4);
+        }, 300);
+        break;
+      }
       case 'country': {
         const { code, name } = result.data as { code: string; name: string };
         this.openCountryBriefByCode(code, name);
@@ -1465,11 +1542,11 @@ export class App {
       <div class="header">
         <div class="header-left">
           <div class="variant-switcher">
-            <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'tech' ? 'https://worldmonitor.app' : '#')}"
-               class="variant-option ${SITE_VARIANT !== 'tech' ? 'active' : ''}"
+            <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'full' ? '#' : 'https://worldmonitor.app')}"
+               class="variant-option ${SITE_VARIANT === 'full' ? 'active' : ''}"
                data-variant="full"
-               ${!this.isDesktopApp && SITE_VARIANT === 'tech' ? 'target="_blank" rel="noopener"' : ''}
-               title="Geopolitical Intelligence${SITE_VARIANT !== 'tech' ? ' (current)' : ''}">
+               ${!this.isDesktopApp && SITE_VARIANT !== 'full' ? 'target="_blank" rel="noopener"' : ''}
+               title="Geopolitical Intelligence${SITE_VARIANT === 'full' ? ' (current)' : ''}">
               <span class="variant-icon">🌍</span>
               <span class="variant-label">WORLD</span>
             </a>
@@ -1481,6 +1558,15 @@ export class App {
                title="Tech & AI Intelligence${SITE_VARIANT === 'tech' ? ' (current)' : ''}">
               <span class="variant-icon">💻</span>
               <span class="variant-label">TECH</span>
+            </a>
+            <span class="variant-divider"></span>
+            <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'finance' ? '#' : 'https://finance.worldmonitor.app')}"
+               class="variant-option ${SITE_VARIANT === 'finance' ? 'active' : ''}"
+               data-variant="finance"
+               ${!this.isDesktopApp && SITE_VARIANT !== 'finance' ? 'target="_blank" rel="noopener"' : ''}
+               title="Finance & Trading${SITE_VARIANT === 'finance' ? ' (current)' : ''}">
+              <span class="variant-icon">📈</span>
+              <span class="variant-label">FINANCE</span>
             </a>
           </div>
           <span class="logo">MONITOR</span><span class="version">v${__APP_VERSION__}</span>

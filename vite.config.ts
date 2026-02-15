@@ -52,6 +52,26 @@ const VARIANT_META: Record<string, {
       'Service status monitoring',
     ],
   },
+  finance: {
+    title: 'Finance Monitor - Real-Time Markets & Trading Dashboard',
+    description: 'Real-time finance and trading dashboard tracking global markets, stock exchanges, central banks, commodities, forex, crypto, and economic indicators worldwide.',
+    keywords: 'finance dashboard, trading dashboard, stock market, forex, commodities, central banks, crypto, economic indicators, market news, financial centers, stock exchanges, bonds, derivatives, fintech, hedge funds, IPO tracker, market analysis',
+    url: 'https://finance.worldmonitor.app/',
+    siteName: 'Finance Monitor',
+    features: [
+      'Real-time market data',
+      'Stock exchange mapping',
+      'Central bank monitoring',
+      'Commodity price tracking',
+      'Forex & currency news',
+      'Crypto & digital assets',
+      'Economic indicator alerts',
+      'IPO & earnings tracking',
+      'Financial center mapping',
+      'Sector heatmap',
+      'Market radar signals',
+    ],
+  },
 };
 
 function htmlVariantPlugin(): Plugin {
