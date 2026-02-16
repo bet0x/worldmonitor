@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 1 of 4 (CSS Foundation & Color Centralization)
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Executing
-Last activity: 2026-02-16 — Completed 01-03-PLAN.md (settings window + embedded style block color conversion)
+Last activity: 2026-02-16 — Completed 01-04-PLAN.md (dynamic inline style color conversion)
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 5 min
-- Total execution time: 0.25 hours
+- Total plans completed: 4
+- Average duration: 8 min
+- Total execution time: 0.53 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-css-foundation | 3/5 | 15min | 5min |
+| 01-css-foundation | 4/5 | 32min | 8min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5min), 01-02 (5min), 01-03 (5min)
-- Trend: consistent
+- Last 5 plans: 01-01 (5min), 01-02 (5min), 01-03 (5min), 01-04 (17min)
+- Trend: consistent (01-04 larger scope)
 
 *Updated after each plan completion*
 
@@ -52,6 +52,9 @@ Recent decisions affecting current work:
 - (01-02) High-opacity dark rgba (>0.6) maps to var(--bg), low-opacity (<0.35) maps to var(--overlay-heavy)
 - (01-03) color-mix(in srgb, var(--x) N%, transparent) pattern for alpha-transparent tints from CSS variables
 - (01-03) Settings window --settings-* variables alias global theme variables for cascade isolation
+- (01-04) THREAT_COLORS kept as deprecated constant; new getThreatColor() function is recommended path
+- (01-04) PIPELINE_COLORS and MONITOR_COLORS left as fixed hex — category identifier colors not theme-dependent
+- (01-04) Map d3 SVG fills/strokes converted to --map-* CSS variables for theme reactivity
 
 ### Pending Todos
 
@@ -70,5 +73,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16 (plan execution)
-Stopped at: Completed 01-03-PLAN.md
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
