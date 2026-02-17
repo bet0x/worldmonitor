@@ -1921,7 +1921,7 @@ export class MapComponent {
     if (this.state.layers.stockExchanges) {
       STOCK_EXCHANGES.forEach((exchange) => {
         const pos = projection([exchange.lon, exchange.lat]);
-        if (!pos) return;
+        if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) return;
 
         const icon = exchange.tier === 'mega' ? '🏛️' : exchange.tier === 'major' ? '📊' : '📈';
         const div = document.createElement('div');
@@ -1932,7 +1932,7 @@ export class MapComponent {
         div.textContent = icon;
         div.title = `${exchange.shortName} (${exchange.city})`;
 
-        if (this.state.zoom >= 2 && exchange.tier === 'mega' || this.state.zoom >= 3) {
+        if ((this.state.zoom >= 2 && exchange.tier === 'mega') || this.state.zoom >= 3) {
           const label = document.createElement('span');
           label.className = 'marker-label';
           label.textContent = exchange.shortName;
@@ -1958,7 +1958,7 @@ export class MapComponent {
     if (this.state.layers.financialCenters) {
       FINANCIAL_CENTERS.forEach((center) => {
         const pos = projection([center.lon, center.lat]);
-        if (!pos) return;
+        if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) return;
 
         const icon = center.type === 'global' ? '💰' : center.type === 'regional' ? '🏦' : '🏝️';
         const div = document.createElement('div');
@@ -1969,7 +1969,7 @@ export class MapComponent {
         div.textContent = icon;
         div.title = `${center.name} Financial Center`;
 
-        if (this.state.zoom >= 2 && center.type === 'global' || this.state.zoom >= 3) {
+        if ((this.state.zoom >= 2 && center.type === 'global') || this.state.zoom >= 3) {
           const label = document.createElement('span');
           label.className = 'marker-label';
           label.textContent = center.name;
@@ -1995,7 +1995,7 @@ export class MapComponent {
     if (this.state.layers.centralBanks) {
       CENTRAL_BANKS.forEach((bank) => {
         const pos = projection([bank.lon, bank.lat]);
-        if (!pos) return;
+        if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) return;
 
         const icon = bank.type === 'supranational' ? '🌐' : bank.type === 'major' ? '🏛️' : '🏦';
         const div = document.createElement('div');
@@ -2006,7 +2006,7 @@ export class MapComponent {
         div.textContent = icon;
         div.title = `${bank.shortName} - ${bank.name}`;
 
-        if (this.state.zoom >= 2 && (bank.type === 'major' || bank.type === 'supranational') || this.state.zoom >= 3) {
+        if ((this.state.zoom >= 2 && (bank.type === 'major' || bank.type === 'supranational')) || this.state.zoom >= 3) {
           const label = document.createElement('span');
           label.className = 'marker-label';
           label.textContent = bank.shortName;
@@ -2032,7 +2032,7 @@ export class MapComponent {
     if (this.state.layers.commodityHubs) {
       COMMODITY_HUBS.forEach((hub) => {
         const pos = projection([hub.lon, hub.lat]);
-        if (!pos) return;
+        if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) return;
 
         const icon = hub.type === 'exchange' ? '📦' : hub.type === 'port' ? '🚢' : '⛽';
         const div = document.createElement('div');

@@ -162,6 +162,10 @@ const ALLOWED_DOMAINS = [
   'www.imf.org',
   // Additional
   'news.ycombinator.com',
+  // Finance variant
+  'seekingalpha.com',
+  'www.coindesk.com',
+  'cointelegraph.com',
 ];
 
 export default async function handler(req) {
