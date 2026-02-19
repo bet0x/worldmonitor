@@ -921,11 +921,15 @@ export class DeckGLMap {
     // Undersea cables layer
     if (mapLayers.cables) {
       layers.push(this.createCablesLayer());
+    } else {
+      this.layerCache.delete('cables-layer');
     }
 
     // Pipelines layer
     if (mapLayers.pipelines) {
       layers.push(this.createPipelinesLayer());
+    } else {
+      this.layerCache.delete('pipelines-layer');
     }
 
     // Conflict zones layer
