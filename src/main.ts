@@ -4,14 +4,16 @@ import * as Sentry from '@sentry/browser';
 import { inject } from '@vercel/analytics';
 import { App } from './App';
 
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
+
 // Initialize Sentry error tracking (early as possible)
 Sentry.init({
-  dsn: 'https://afc9a1c85c6ba49f8464a43f8de74ccd@o4509927897890816.ingest.us.sentry.io/4510906342113280',
+  dsn: sentryDsn || undefined,
   release: `worldmonitor@${__APP_VERSION__}`,
   environment: location.hostname === 'worldmonitor.app' ? 'production'
     : location.hostname.includes('vercel.app') ? 'preview'
     : 'development',
-  enabled: !location.hostname.startsWith('localhost') && !('__TAURI_INTERNALS__' in window),
+  enabled: Boolean(sentryDsn) && !location.hostname.startsWith('localhost') && !('__TAURI_INTERNALS__' in window),
   sendDefaultPii: true,
   tracesSampleRate: 0.1,
   ignoreErrors: [
@@ -39,17 +41,24 @@ Sentry.init({
     /vc_text_indicators_context/,
     /Program failed to link: null/,
     /too much recursion/,
+    /zaloJSV2/,
+    /Java bridge method invocation error/,
+    /Could not compile fragment shader/,
+    /can't redefine non-configurable property/,
+    /Can't find variable: (CONFIG|currentInset)/,
+    /invalid origin/,
+    /\.data\.split is not a function/,
   ],
   beforeSend(event) {
     const msg = event.exception?.values?.[0]?.value ?? '';
     if (msg.length <= 3 && /^[a-zA-Z_$]+$/.test(msg)) return null;
     const frames = event.exception?.values?.[0]?.stacktrace?.frames ?? [];
-    // Suppress module-import failures only when originating from browser extensions
+    // Suppress module-import failures only when originating from browser extensions.
     if (/Importing a module script failed/.test(msg)) {
       if (frames.some(f => /^(chrome|moz)-extension:/.test(f.filename ?? ''))) return null;
     }
     // Suppress maplibre internal null-access crashes (light, placement) only when stack is in map chunk
-    if (/this\.style\._layers|this\.light is null|can't access property "type", \w+ is undefined|Cannot read properties of null \(reading '(id|type)'\)/.test(msg)) {
+    if (/this\.style\._layers|this\.light is null|can't access property "(type|setFilter)", \w+ is (null|undefined)|Cannot read properties of null \(reading '(id|type|setFilter)'\)|null is not an object \(evaluating '(E\.|this\.style)/.test(msg)) {
       if (frames.some(f => /\/map-[A-Za-z0-9]+\.js/.test(f.filename ?? ''))) return null;
     }
     return event;

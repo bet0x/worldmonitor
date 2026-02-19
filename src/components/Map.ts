@@ -581,9 +581,9 @@ export class MapComponent {
     } else {
       // Geopolitical variant legend
       legend.innerHTML = `
-        <div class="map-legend-item"><span class="legend-dot high"></span>${escapeHtml(t('popups.hotspot.levels.high').toUpperCase())}</div>
-        <div class="map-legend-item"><span class="legend-dot elevated"></span>${escapeHtml(t('popups.hotspot.levels.elevated').toUpperCase())}</div>
-        <div class="map-legend-item"><span class="legend-dot low"></span>${escapeHtml(t('popups.monitoring').toUpperCase())}</div>
+        <div class="map-legend-item"><span class="legend-dot high"></span>${escapeHtml((t('popups.hotspot.levels.high') ?? 'HIGH').toUpperCase())}</div>
+        <div class="map-legend-item"><span class="legend-dot elevated"></span>${escapeHtml((t('popups.hotspot.levels.elevated') ?? 'ELEVATED').toUpperCase())}</div>
+        <div class="map-legend-item"><span class="legend-dot low"></span>${escapeHtml((t('popups.monitoring') ?? 'MONITORING').toUpperCase())}</div>
         <div class="map-legend-item"><span class="map-legend-icon conflict">⚔</span>${escapeHtml(t('modals.search.types.conflict').toUpperCase())}</div>
         <div class="map-legend-item"><span class="map-legend-icon earthquake">●</span>${escapeHtml(t('modals.search.types.earthquake').toUpperCase())}</div>
         <div class="map-legend-item"><span class="map-legend-icon apt">⚠</span>APT</div>
@@ -826,6 +826,7 @@ export class MapComponent {
     }
 
     // Simple viewBox matching container - keeps SVG and overlays aligned
+    if (!this.svg) return;
     this.svg.attr('viewBox', `0 0 ${width} ${height}`);
 
     // CRITICAL: Always refresh d3 selections from actual DOM to prevent stale references
