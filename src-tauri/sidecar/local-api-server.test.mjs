@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -654,5 +655,88 @@ test('auth-required behavior unchanged — rejects unauthenticated requests when
     delete process.env.OLLAMA_API_URL;
     await app.close();
     await localApi.cleanup();
+  }
+});
+
+
+test('prefers Brotli compression for payloads larger than 1KB when supported by the client', async () => {
+  const remote = await setupRemoteServer();
+  const localApi = await setupApiDir({
+    'compression-check.js': `
+      export default async function handler() {
+        const payload = { value: 'x'.repeat(3000) };
+        return new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+    `,
+  });
+
+  const app = await createLocalApiServer({
+    port: 0,
+    apiDir: localApi.apiDir,
+    remoteBase: remote.remoteBase,
+    logger: { log() {}, warn() {}, error() {} },
+  });
+  const { port } = await app.start();
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/compression-check`, {
+      headers: { 'Accept-Encoding': 'gzip, br' },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-encoding'), 'br');
+
+    const compressed = Buffer.from(await response.arrayBuffer());
+    const decompressed = brotliDecompressSync(compressed).toString('utf8');
+    const body = JSON.parse(decompressed);
+    assert.equal(body.value.length, 3000);
+    assert.equal(remote.hits.length, 0);
+  } finally {
+    await app.close();
+    await localApi.cleanup();
+    await remote.close();
+  }
+});
+
+test('uses gzip compression when Brotli is unavailable but gzip is accepted', async () => {
+  const remote = await setupRemoteServer();
+  const localApi = await setupApiDir({
+    'compression-check.js': `
+      export default async function handler() {
+        const payload = { value: 'x'.repeat(3000) };
+        return new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+    `,
+  });
+
+  const app = await createLocalApiServer({
+    port: 0,
+    apiDir: localApi.apiDir,
+    remoteBase: remote.remoteBase,
+    logger: { log() {}, warn() {}, error() {} },
+  });
+  const { port } = await app.start();
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/compression-check`, {
+      headers: { 'Accept-Encoding': 'gzip' },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-encoding'), 'gzip');
+
+    const compressed = Buffer.from(await response.arrayBuffer());
+    const decompressed = gunzipSync(compressed).toString('utf8');
+    const body = JSON.parse(decompressed);
+    assert.equal(body.value.length, 3000);
+    assert.equal(remote.hits.length, 0);
+  } finally {
+    await app.close();
+    await localApi.cleanup();
+    await remote.close();
   }
 });
