@@ -35,7 +35,7 @@ Sentry.init({
     /Non-Error promise rejection captured with value:/,
     /Connection to Indexed Database server lost/,
     /webkit\.messageHandlers/,
-    /unsafe-eval.*Content Security Policy/,
+    /(?:unsafe-eval.*Content Security Policy|Content Security Policy.*unsafe-eval)/,
     /Fullscreen request denied/,
     /requestFullscreen/,
     /vc_text_indicators_context/,
@@ -57,6 +57,7 @@ Sentry.init({
     /Unexpected identifier 'https'/,
     /Can't find variable: _0x/,
     /WKWebView was deallocated/,
+    /Unexpected end of input/,
   ],
   beforeSend(event) {
     const msg = event.exception?.values?.[0]?.value ?? '';
